@@ -1,6 +1,4 @@
-extern crate rusqlite;
-
-use rusqlite::Connection;
+use rusqlite::{Connection, params};
 
 #[derive(Debug)]
 struct Data {
@@ -17,31 +15,31 @@ fn mark_used(conn: &Connection, db: &str, d: &Data)-> rusqlite::Result<()>{
 
 fn reset_table(conn: &Connection, db: &str) -> rusqlite::Result<()>{
     let mut stmt = conn.prepare(&format!("update {} set used = 0", db))?;
-    stmt.execute(&[])?;
+    stmt.execute(params![])?;
     Ok(())
 }
 
 fn find_next(conn: &Connection, db: &str) -> rusqlite::Result<Data>{
     let mut stmt = conn.prepare(
         &format!("select id, name, used from {} where used=0 limit 1", db))?;
-    let mut rows = stmt.query(&[])?;
+    let mut rows = stmt.query(params![])?;
 
-    match rows.next() {
+    match rows.next()? {
         Some(result_row) => {
-            let row = result_row?;
+            let row = result_row;
             let d = Data {
-                id: row.get(0),
-                name: row.get(1),
-                used: row.get(2),
+                id: row.get(0)?,
+                name: row.get(1)?,
+                used: row.get(2)?,
             };
-            return Ok(d);
+            Ok(d)
         }
         None => {
             // Reset all the values to 0 and start over
             reset_table(conn, db)?;
-            return find_next(conn, db);
+            find_next(conn, db)
         }
-    };
+    }
 }
 
 fn main() {
